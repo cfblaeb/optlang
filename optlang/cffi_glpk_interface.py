@@ -47,12 +47,6 @@ from glpk_cffi.lib import glp_find_col, glp_get_col_prim, glp_get_col_dual, GLP_
     glp_scale_prob, GLP_SF_AUTO, glp_get_num_int, glp_get_num_bin, glp_mip_col_val, glp_mip_obj_val, glp_mip_status, \
     GLP_ETMLIM, glp_adv_basis, glp_read_lp, glp_mip_row_val, glp_delete_prob
 
-# actually structs
-# glp_iocp, glp_smcp
-
-# actually defined in swiglpk
-# https://github.com/biosustain/swiglpk/blob/master/swiglpk/glpk.i
-#  intArray, doubleArray, get_col_primals, get_col_duals, get_row_primals, get_row_duals,
 
 _GLPK_STATUS_TO_STATUS = {
     GLP_UNDEF: interface.UNDEFINED,
@@ -611,20 +605,31 @@ class Model(interface.Model):
         value.problem = self
 
     def _get_primal_values(self):
-        return get_col_primals(self.problem)
+        n = glp_get_num_cols(self.problem)
+
+        if glp_get_num_int(self.problem) == 0:
+            return [glp_get_col_prim(self.problem, i + 1) for i in range(n)]
+        else:
+            return [glp_mip_col_val(self.problem, i + 1) for i in range(n)]
 
     def _get_reduced_costs(self):
         if self.is_integer:
             raise ValueError("Dual values are not well-defined for integer problems")
-        return get_col_duals(self.problem)
+        n = glp_get_num_cols(self.problem)
+        return [glp_get_col_dual(self.problem, i + 1) for i in range(n)]
 
     def _get_constraint_values(self):
-        return get_row_primals(self.problem)
+        n = glp_get_num_rows(self.problem)
+        if glp_get_num_int(self.problem) == 0:
+            return [glp_get_row_prim(self.problem, i + 1) for i in range(n)]
+        else:
+            return [glp_mip_row_val(self.problem, i + 1) for i in range(n)]
 
     def _get_shadow_prices(self):
         if self.is_integer:
             raise ValueError("Dual values are not well-defined for integer problems")
-        return get_row_duals(self.problem)
+        n = glp_get_num_rows(self.problem)
+        return [glp_get_row_dual(self.problem, i + 1) for i in range(n)]
 
     def to_lp(self):
         self.update()
